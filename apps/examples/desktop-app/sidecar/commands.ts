@@ -33,6 +33,7 @@ import {
 	persistClineAccountTelemetryIdentity,
 	probeMcpServerConnection,
 	readGlobalSettings,
+	refreshProviderModelsFromSource,
 	resolveClineAccountTelemetryIdentity,
 	resolveMcpServerRegistration,
 	resolveSessionBackend,
@@ -1901,6 +1902,10 @@ export async function handleCommand(
 	if (command === "list_provider_models") {
 		const manager = new ProviderSettingsManager();
 		const provider = String(args?.provider ?? "").trim();
+		// Endpoint-owned catalogs (Ollama, LM Studio, llama-swap, and custom
+		// providers) are refreshed on demand. Besides updating the list, this is
+		// the settings UI's connection test and surfaces endpoint errors there.
+		await refreshProviderModelsFromSource(manager, provider);
 		// Known models are merged in unfiltered after the provider's own model
 		// rules run, so including them here would leak e.g. the full OpenAI
 		// catalog into the ChatGPT Subscription (codex) picker.

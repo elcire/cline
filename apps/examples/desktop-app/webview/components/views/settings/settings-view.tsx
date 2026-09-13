@@ -338,7 +338,7 @@ export function SettingsView({
 	);
 
 	const updateProvider = useCallback(
-		(id: string, updates: ProviderSettingsUpdate) => {
+		async (id: string, updates: ProviderSettingsUpdate) => {
 			// Saving settings creates the provider's persisted entry, which is
 			// what "connected" means for keyless providers — reflect it locally.
 			catalogGenerationRef.current++;
@@ -359,7 +359,7 @@ export function SettingsView({
 						: p,
 				),
 			);
-			void persistProviderSettings(id, {
+			await persistProviderSettings(id, {
 				apiKey: updates.apiKey,
 				baseUrl: updates.baseUrl,
 				configValues: updates.configValues,

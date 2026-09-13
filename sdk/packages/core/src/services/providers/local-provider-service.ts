@@ -41,6 +41,7 @@ import {
 	readModelsFile,
 	registerCustomProvider,
 	resolveModelsRegistryPath,
+	type StoredProviderEntry,
 	toProviderModel,
 	writeModelsFile,
 } from "./local-provider-registry";
@@ -347,20 +348,29 @@ function normalizeHeaders(
 function buildProviderModels(
 	modelIds: string[],
 	capabilities: ProviderCapability[] | undefined,
+	existingModels: StoredProviderEntry["models"] = {},
 ) {
 	const supportsVision = capabilities?.includes("vision") ?? false;
 	const supportsReasoning = capabilities?.includes("reasoning") ?? false;
 	return Object.fromEntries(
-		modelIds.map((id) => [
-			id,
-			{
+		modelIds.map((id) => {
+			const existing = existingModels?.[id];
+			return [
 				id,
-				name: id,
-				supportsVision,
-				supportsAttachments: supportsVision,
-				supportsReasoning,
-			},
-		]),
+				{
+					name: existing?.name ?? id,
+					supportsVision,
+					supportsAttachments: supportsVision,
+					supportsReasoning,
+					// models.json is the user-owned source of facts that /v1/models
+					// cannot provide (limits, modalities, tools, reasoning, vision,
+					// pricing, and wire format). Endpoint refreshes update membership
+					// while retaining those overrides for model IDs that still exist.
+					...existing,
+					id: existing?.id?.trim() || id,
+				},
+			];
+		}),
 	);
 }
 
@@ -674,7 +684,7 @@ export async function updateLocalProvider(
 			capabilities,
 			modelsSourceUrl: nextModelsSourceUrl,
 		},
-		models: buildProviderModels(modelIds, capabilities),
+		models: buildProviderModels(modelIds, capabilities, existingEntry.models),
 	};
 	await writeModelsFile(modelsPath, modelsState);
 	registerCustomProvider(providerId, modelsState.providers[providerId]);
