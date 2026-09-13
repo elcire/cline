@@ -471,9 +471,6 @@ fn desktop_backend_binary_names() -> Vec<String> {
 }
 
 fn resolve_desktop_backend_binary_path(context: &AppContext) -> Option<PathBuf> {
-    if cfg!(debug_assertions) {
-        return None;
-    }
     let explicit = std::env::var("CLINE_CODE_SIDECAR_BIN")
         .ok()
         .map(|value| value.trim().to_string())

@@ -22,7 +22,7 @@ async function reserveAvailablePort(): Promise<number> {
 
 function spawn(command: string[], env: Record<string, string>) {
 	const child = Bun.spawn(command, {
-		cwd: import.meta.dir + "/..",
+		cwd: `${import.meta.dir}/..`,
 		env: { ...process.env, ...env },
 		stdin: "inherit",
 		stdout: "inherit",
@@ -44,12 +44,21 @@ process.on("SIGTERM", stopChildren);
 async function main(): Promise<void> {
 	const sidecarPort = await reserveAvailablePort();
 	const endpoint = `ws://127.0.0.1:${sidecarPort}/transport?approval_token=${approvalToken}`;
-	const sidecar = spawn(["bun", "run", "sidecar/index.ts"], {
+	const sidecar = spawn([process.execPath, "run", "sidecar/index.ts"], {
 		CLINE_SIDECAR_APPROVAL_TOKEN: approvalToken,
 		CLINE_SIDECAR_PORT: String(sidecarPort),
 	});
 	const web = spawn(
-		["bun", "run", "next", "dev", "webview", "-p", "3125", "--turbo"],
+		[
+			process.execPath,
+			"run",
+			"next",
+			"dev",
+			"webview",
+			"-p",
+			"3125",
+			"--turbo",
+		],
 		{ NEXT_PUBLIC_SIDECAR_WS_ENDPOINT: endpoint },
 	);
 

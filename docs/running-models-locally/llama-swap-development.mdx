@@ -1,0 +1,182 @@
+---
+title: "llama-swap development"
+description: "Build and test the Cline SDK and Desktop app against switchable llama-swap endpoints."
+---
+
+# llama-swap development
+
+This fork includes one first-class `llama-swap` provider. It reuses Cline's
+OpenAI-compatible Chat Completions transport and does not require a Cline
+account or an API key. An optional bearer token can be saved when an endpoint
+requires one.
+
+The Desktop provider settings offer these endpoints:
+
+- `http://192.168.10.65:8282/v1`
+- `http://192.168.1.100:8282/v1`
+- `http://192.168.10.120:8282/v1` (the llama-swap process in this PC's WSL)
+
+Changing the endpoint is persisted immediately and refreshes the model list
+from the selected endpoint's `GET /v1/models`. The next request uses the new
+endpoint; Cline does not need to restart. `localhost:8282` is not used because
+the current Windows localhost listener does not successfully forward HTTP to
+the WSL service. Re-test it after changing WSL networking.
+
+## Toolchain and dependencies
+
+Run these commands in PowerShell from the repository root:
+
+```powershell
+cd D:\cline
+npm.cmd install --global bun@1.3.13
+$env:NODE_EXTRA_CA_CERTS = "D:\cline\work\norton-web-shield.pem"
+bun install --frozen-lockfile --backend=copyfile --network-concurrency=8
+```
+
+The repository declares Bun 1.3.13, Node 22 or newer, and Rust 1.85 or newer.
+This workstation's HTTPS traffic is signed by Norton Web/Mail Shield, so Bun
+must be given the exported public root certificate above. The file is kept in
+the repository's locally ignored `work` directory. If Norton is disabled or
+the certificate changes, export its current root certificate again before
+installing. The copy backend also avoids the hardlink stalls observed on this
+checkout. On a machine without HTTPS interception, omit
+`NODE_EXTRA_CA_CERTS` and use:
+
+```powershell
+bun install --frozen-lockfile
+```
+
+## SDK build and tests
+
+```powershell
+cd D:\cline
+bun run build:sdk
+bun -F @cline/llms test
+bun -F @cline/core test:unit
+bun run types
+```
+
+The llama-swap smoke harness always discovers the selected endpoint's real
+model IDs before it sends a request. With no `--model`, it chooses a preferred
+language model that exists in the returned list.
+
+```powershell
+# Discovery only
+bun -F @cline/llms smoke:llama-swap -- --endpoint http://192.168.10.120:8282/v1 --list-only
+
+# Basic streaming
+bun -F @cline/llms smoke:llama-swap -- --endpoint http://192.168.10.120:8282/v1
+
+# Native tool-call assertion (choose a tool-capable model)
+bun -F @cline/llms smoke:llama-swap -- --endpoint http://192.168.10.120:8282/v1 --model qwen3.6-27b-nvfp4-instruct --tool
+
+# Optional capability probes; use matching model IDs from --list-only
+bun -F @cline/llms smoke:llama-swap -- --endpoint http://192.168.10.120:8282/v1 --model qwen3.6-27b-nvfp4-thinking --reasoning
+bun -F @cline/llms smoke:llama-swap -- --endpoint http://192.168.10.120:8282/v1 --model qwen3.6-27b-nvfp4-vision --vision
+```
+
+For an authenticated llama-swap endpoint, set `LLAMA_SWAP_API_KEY` or pass
+`--api-key`. The harness never prints the token.
+
+## Per-model metadata overrides
+
+`GET /v1/models` usually reports IDs but not context limits or capabilities.
+After connecting and refreshing once, edit
+`$env:USERPROFILE\.cline\data\settings\models.json`. A model entry can override, among
+other fields, `contextWindow`, `maxInputTokens`, `maxTokens`, `capabilities`,
+`supportsVision`, `supportsReasoning`, `operation`, `operationModes`,
+`modalities`, `temperature`, pricing, and `apiFormat`.
+
+```json
+{
+  "version": 1,
+  "providers": {
+    "llama-swap": {
+      "models": {
+        "qwen3.6-27b-nvfp4-instruct": {
+          "contextWindow": 131072,
+          "maxInputTokens": 114688,
+          "maxTokens": 16384,
+          "capabilities": ["tools"]
+        },
+        "qwen3.6-27b-nvfp4-thinking": {
+          "contextWindow": 131072,
+          "maxTokens": 32768,
+          "capabilities": ["tools", "reasoning"],
+          "supportsReasoning": true
+        },
+        "qwen3.6-27b-nvfp4-vision": {
+          "contextWindow": 65536,
+          "maxTokens": 8192,
+          "capabilities": ["tools", "images"],
+          "supportsVision": true,
+          "modalities": { "input": ["text", "image"], "output": ["text"] }
+        }
+      }
+    }
+  }
+}
+```
+
+Model refresh updates endpoint membership but preserves overrides for IDs that
+remain available. Keep limits aligned with the llama-swap configuration; the
+example values above are illustrative rather than GPU- or model-specific
+defaults.
+
+## Desktop development and builds
+
+The fastest Desktop path runs the sidecar and web UI together:
+
+```powershell
+cd D:\cline\apps\examples\desktop-app
+bun run dev:headless
+```
+
+Or run them in separate terminals:
+
+```powershell
+cd D:\cline\apps\examples\desktop-app
+bun run dev:sidecar
+```
+
+```powershell
+cd D:\cline\apps\examples\desktop-app
+bun run dev:web
+```
+
+Open `http://localhost:3125`. For the native Tauri window and production
+Windows package:
+
+```powershell
+cd D:\cline\apps\examples\desktop-app
+bun run dev
+bun run package:desktop:windows
+```
+
+Useful focused verification:
+
+```powershell
+cd D:\cline\apps\examples\desktop-app
+bun run typecheck
+bun run test:settings-ui
+bun run test:sidecar
+bun run build:web
+```
+
+## Pulling upstream changes
+
+Keep `main` as a clean mirror of official Cline and do custom work on feature
+branches:
+
+```powershell
+cd D:\cline
+git fetch upstream
+git switch main
+git merge --ff-only upstream/main
+git push origin main
+git switch feat/llama-swap-provider
+git rebase main
+```
+
+Resolve any conflicts on the feature branch, rerun the focused tests, and then
+push with `git push -u origin feat/llama-swap-provider`.
