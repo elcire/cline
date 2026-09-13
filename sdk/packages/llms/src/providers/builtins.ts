@@ -151,6 +151,7 @@ const LLAMA_SWAP_CONFIG_FIELDS: readonly ProviderConfigField[] = [
 		placeholder: "Optional bearer token",
 		description:
 			"Optional. Leave blank for an unauthenticated local llama-swap endpoint.",
+		required: false,
 	},
 ];
 

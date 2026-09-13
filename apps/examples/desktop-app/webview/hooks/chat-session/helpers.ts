@@ -178,10 +178,17 @@ export function resolveCredentialError(
 	}
 	// OAuth and local-auth providers (Claude Code, Codex CLI) keep their
 	// credentials outside the webview config and never read an API key.
-	const capabilities = getProviderCollectionSync(
+	const provider = getProviderCollectionSync(
 		normalizeProviderId(providerId),
-	)?.provider.capabilities;
+	)?.provider;
+	const capabilities = provider?.capabilities;
 	if (capabilities?.includes("oauth") || capabilities?.includes("local-auth")) {
+		return null;
+	}
+	const apiKeyField = provider?.metadata?.configFields?.find(
+		(field) => field.path === "apiKey",
+	);
+	if (apiKeyField?.required === false || config.baseUrl?.trim()) {
 		return null;
 	}
 	if (config.apiKey.trim().length > 0) {
