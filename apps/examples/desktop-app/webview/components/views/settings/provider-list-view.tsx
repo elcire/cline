@@ -584,7 +584,7 @@ export function ProviderDetailContent({
 }: {
 	provider: Provider;
 	onBack: () => void;
-	onUpdate: (updates: ProviderSettingsUpdate) => void;
+	onUpdate: (updates: ProviderSettingsUpdate) => void | Promise<void>;
 	onLoadModels?: () => void;
 	onUpdateModels?: (models: string[]) => void;
 	modelsLoading?: boolean;
@@ -714,7 +714,14 @@ export function ProviderDetailContent({
 		if (field.path === "baseUrl") {
 			updates.baseUrl = fieldValueToString(value);
 		}
-		onUpdate(updates);
+		void Promise.resolve(onUpdate(updates)).then(() => {
+			// Endpoint-backed providers expose baseUrl as a selector. Refresh only
+			// after the save completes so /v1/models is fetched from the newly
+			// selected endpoint without requiring an app restart or a second click.
+			if (field.path === "baseUrl") {
+				onLoadModels?.();
+			}
+		});
 	};
 
 	const handleDisconnect = () => {

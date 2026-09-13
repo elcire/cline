@@ -1311,6 +1311,9 @@ function ChatThreadPane({
 	const [providerCredentials, setProviderCredentials] = useState<
 		Record<string, { apiKey: string; auth?: ProviderAuthInfo }>
 	>(() => readProviderCatalogSnapshot()?.credentials ?? {});
+	const [providerBaseUrls, setProviderBaseUrls] = useState<
+		Record<string, string>
+	>(() => readProviderCatalogSnapshot()?.baseUrls ?? {});
 	const [providerModelContextWindows, setProviderModelContextWindows] =
 		useState<Record<string, Record<string, number>>>(
 			() => readProviderCatalogSnapshot()?.contextWindows ?? {},
@@ -1456,6 +1459,7 @@ function ChatThreadPane({
 			}
 			const next: Record<string, { apiKey: string; auth?: ProviderAuthInfo }> =
 				{};
+			const nextBaseUrls: Record<string, string> = {};
 			const nextContextWindows: Record<string, Record<string, number>> = {};
 			let anyConnected = false;
 			for (const provider of payload.providers ?? []) {
@@ -1467,6 +1471,7 @@ function ChatThreadPane({
 					apiKey: provider.apiKey?.trim() ?? "",
 					auth: provider.auth,
 				};
+				nextBaseUrls[id] = provider.baseUrl?.trim() ?? "";
 				if (isProviderConnected(provider)) {
 					anyConnected = true;
 				}
@@ -1485,9 +1490,11 @@ function ChatThreadPane({
 			}
 			writeProviderCatalogSnapshot({
 				credentials: next,
+				baseUrls: nextBaseUrls,
 				contextWindows: nextContextWindows,
 			});
 			setProviderCredentials(next);
+			setProviderBaseUrls(nextBaseUrls);
 			setProviderModelContextWindows(nextContextWindows);
 			setHasConnectedProvider(anyConnected);
 		} catch {
@@ -1533,6 +1540,17 @@ function ChatThreadPane({
 		providerCredentials,
 		setConfig,
 	]);
+
+	useEffect(() => {
+		const nextBaseUrl = providerBaseUrls[config.provider];
+		if (nextBaseUrl === undefined || config.baseUrl === nextBaseUrl) {
+			return;
+		}
+		// Settings invalidation reloads this catalog after an endpoint change.
+		// Updating chat config invokes the existing session connection update,
+		// so the very next turn routes to the new endpoint without a restart.
+		setConfig((prev) => ({ ...prev, baseUrl: nextBaseUrl }));
+	}, [config.baseUrl, config.provider, providerBaseUrls, setConfig]);
 
 	const getWorkspaceCwd = useCallback(
 		() =>

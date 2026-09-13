@@ -283,6 +283,7 @@ export function invalidateProviderCatalogCache(): void {
 // in the pane module) so credential changes invalidate it with the cache.
 export type ProviderCatalogSnapshot = {
 	credentials: Record<string, { apiKey: string; auth?: ProviderAuthInfo }>;
+	baseUrls: Record<string, string>;
 	contextWindows: Record<string, Record<string, number>>;
 };
 

@@ -55,6 +55,7 @@ import {
 	probeMcpServerConnection,
 	RemoteEnvironmentService,
 	readGlobalSettings,
+	refreshProviderModelsFromSource,
 	resolveClineAccountTelemetryIdentity,
 	resolveMcpServerRegistration,
 	resolveSessionBackend,
@@ -2907,6 +2908,10 @@ export async function handleCommand(
 	if (command === "list_provider_models") {
 		const manager = new ProviderSettingsManager();
 		const providerId = String(args?.provider ?? "").trim();
+		// Endpoint-owned catalogs (Ollama, LM Studio, llama-swap, and custom
+		// providers) are refreshed on demand. Besides updating the list, this is
+		// the settings UI's connection test and surfaces endpoint errors there.
+		await refreshProviderModelsFromSource(manager, providerId);
 		const includeCloudModels =
 			providerId === "cline" &&
 			args?.includeCloudModels === true &&

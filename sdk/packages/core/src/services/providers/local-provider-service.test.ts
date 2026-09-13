@@ -3329,4 +3329,67 @@ describe("refreshProviderModelsFromSource", () => {
 			modelsState,
 		);
 	});
+
+	it("refreshes llama-swap membership while preserving per-model overrides", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({
+				data: [{ id: "kept-model" }, { id: "new-model" }],
+			}),
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		saveLocalProviderSettings(manager, {
+			providerId: "llama-swap",
+			baseUrl: "http://192.168.10.120:8282/v1",
+			model: "kept-model",
+		});
+		writeFileSync(
+			resolveModelsRegistryPath(manager),
+			JSON.stringify({
+				version: 1,
+				providers: {
+					"llama-swap": {
+						provider: {
+							name: "llama-swap",
+							baseUrl: "http://192.168.10.120:8282/v1",
+							defaultModelId: "kept-model",
+							modelsSourceUrl: "http://192.168.10.120:8282/v1/models",
+						},
+						models: {
+							"kept-model": {
+								id: "kept-model",
+								contextWindow: 131072,
+								maxTokens: 16384,
+								capabilities: ["tools", "reasoning", "images"],
+							},
+							"removed-model": { contextWindow: 4096 },
+						},
+					},
+				},
+			}),
+		);
+
+		const result = await refreshProviderModelsFromSource(manager, "llama-swap");
+
+		expect(result).toEqual({
+			providerId: "llama-swap",
+			refreshed: true,
+			modelsCount: 2,
+		});
+		expect(fetchMock).toHaveBeenCalledWith(
+			"http://192.168.10.120:8282/v1/models",
+			expect.any(Object),
+		);
+		const modelsState = await readModelsFile(
+			resolveModelsRegistryPath(manager),
+		);
+		expect(modelsState.providers["llama-swap"]?.models).toEqual({
+			"kept-model": expect.objectContaining({
+				contextWindow: 131072,
+				maxTokens: 16384,
+				capabilities: ["tools", "reasoning", "images"],
+			}),
+			"new-model": expect.objectContaining({ id: "new-model" }),
+		});
+	});
 });

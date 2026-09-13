@@ -140,6 +140,63 @@ describe("ProviderDetailContent models", () => {
 			configValues: { keepAlive: !checked },
 		});
 	});
+
+	it("saves a selected endpoint before refreshing its model catalog", async () => {
+		let finishSave: (() => void) | undefined;
+		const onUpdate = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finishSave = resolve;
+				}),
+		);
+		const onLoadModels = vi.fn();
+		await act(async () => {
+			root.render(
+				<ProviderDetailContent
+					modelsError={null}
+					onBack={vi.fn()}
+					onLoadModels={onLoadModels}
+					onUpdate={onUpdate}
+					provider={{
+						...provider,
+						id: "llama-swap",
+						name: "llama-swap",
+						baseUrl: "http://192.168.10.65:8282/v1",
+						configFields: [
+							{
+								path: "baseUrl",
+								label: "Endpoint",
+								type: "select",
+								options: [
+									{
+										label: "WSL",
+										value: "http://192.168.10.120:8282/v1",
+									},
+								],
+							},
+						],
+					}}
+				/>,
+			);
+		});
+
+		const select = container.querySelector<HTMLSelectElement>("select");
+		await act(async () => {
+			if (!select) throw new Error("endpoint select was not rendered");
+			select.value = "http://192.168.10.120:8282/v1";
+			select.dispatchEvent(new Event("change", { bubbles: true }));
+		});
+		expect(onUpdate).toHaveBeenCalledWith({
+			baseUrl: "http://192.168.10.120:8282/v1",
+			configValues: {
+				baseUrl: "http://192.168.10.120:8282/v1",
+			},
+		});
+		expect(onLoadModels).not.toHaveBeenCalled();
+
+		await act(async () => finishSave?.());
+		expect(onLoadModels).toHaveBeenCalledOnce();
+	});
 });
 
 const catalogProviders: Provider[] = [
