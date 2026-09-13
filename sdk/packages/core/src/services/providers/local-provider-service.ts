@@ -644,11 +644,18 @@ export async function updateLocalProvider(
 			: modelIds[0];
 
 	const existingSettings = manager.getProviderSettings(providerId);
+	const selectedModelCandidate = existingSettings?.model?.trim();
+	const selectedModelId =
+		request.defaultModelId === undefined &&
+		selectedModelCandidate &&
+		modelIds.includes(selectedModelCandidate)
+			? selectedModelCandidate
+			: defaultModelId;
 	const nextSettings: Record<string, unknown> = {
 		...(existingSettings ?? {}),
 		provider: providerId,
 		baseUrl,
-		model: defaultModelId,
+		model: selectedModelId,
 	};
 	if (protocol) nextSettings.protocol = protocol;
 	else delete nextSettings.protocol;

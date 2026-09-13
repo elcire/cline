@@ -2384,7 +2384,7 @@ describe("refreshProviderModelsFromSource", () => {
 						provider: {
 							name: "llama-swap",
 							baseUrl: "http://192.168.10.120:8282/v1",
-							defaultModelId: "kept-model",
+							defaultModelId: "new-model",
 							modelsSourceUrl: "http://192.168.10.120:8282/v1/models",
 						},
 						models: {
@@ -2408,6 +2408,7 @@ describe("refreshProviderModelsFromSource", () => {
 			refreshed: true,
 			modelsCount: 2,
 		});
+		expect(manager.getProviderSettings("llama-swap")?.model).toBe("kept-model");
 		expect(fetchMock).toHaveBeenCalledWith(
 			"http://192.168.10.120:8282/v1/models",
 			expect.any(Object),
