@@ -204,7 +204,11 @@ describe("provider-ids", () => {
 							}),
 						]),
 					}),
-					expect.objectContaining({ path: "apiKey", type: "password" }),
+					expect.objectContaining({
+						path: "apiKey",
+						type: "password",
+						required: false,
+					}),
 				]),
 			},
 		});

@@ -131,6 +131,18 @@ describe("resolveCredentialError", () => {
 		).toBeNull();
 	});
 
+	it("allows providers with an explicitly optional API key", () => {
+		expect(
+			resolveCredentialError(
+				makeConfig({
+					provider: "llama-swap",
+					baseUrl: "http://127.0.0.1:8282/v1",
+					apiKey: "",
+				}),
+			),
+		).toBeNull();
+	});
+
 	it.each([
 		"cline",
 		"cline-pass",
