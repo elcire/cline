@@ -184,6 +184,39 @@ describe("provider-ids", () => {
 		});
 	});
 
+	it("registers llama-swap as a keyless OpenAI-compatible provider with selectable endpoints", async () => {
+		expect(BUILT_IN_PROVIDER_IDS).toContain("llama-swap");
+		await expect(getProvider("llama-swap")).resolves.toMatchObject({
+			id: "llama-swap",
+			name: "llama-swap",
+			baseUrl: "http://192.168.10.65:8282/v1",
+			modelsSourceUrl: "http://192.168.10.65:8282/v1/models",
+			defaultModelId: "qwen3.6-27b-nvfp4-instruct",
+			client: "openai-compatible",
+			metadata: {
+				configFields: expect.arrayContaining([
+					expect.objectContaining({
+						path: "baseUrl",
+						type: "select",
+						options: expect.arrayContaining([
+							expect.objectContaining({
+								value: "http://192.168.10.120:8282/v1",
+							}),
+						]),
+					}),
+					expect.objectContaining({ path: "apiKey", type: "password" }),
+				]),
+			},
+		});
+
+		const registration = BUILTIN_PROVIDER_REGISTRATIONS.find(
+			(item) => item.manifest.id === "llama-swap",
+		);
+		await expect(registration?.loadProvider?.()).resolves.toMatchObject({
+			createProvider: createOpenAICompatibleProvider,
+		});
+	});
+
 	it("registers Xiaomi as an OpenAI-compatible built-in provider", async () => {
 		const defaultModelId = generatedProviderDefault("xiaomi");
 		await expect(getProvider("xiaomi")).resolves.toMatchObject({
