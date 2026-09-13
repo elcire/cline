@@ -126,6 +126,34 @@ const BASE_URL_FIELD: ProviderConfigField = {
 	description: "Base endpoint used for provider requests.",
 };
 
+const LLAMA_SWAP_ENDPOINT_FIELD: ProviderConfigField = {
+	path: "baseUrl",
+	label: "Endpoint",
+	type: "select",
+	description:
+		"Active llama-swap OpenAI-compatible endpoint. Changing it affects the next request; refresh models after switching.",
+	options: [
+		{ label: "LAN · 192.168.10.65", value: "http://192.168.10.65:8282/v1" },
+		{ label: "LAN · 192.168.1.100", value: "http://192.168.1.100:8282/v1" },
+		{
+			label: "This PC · WSL (192.168.10.120)",
+			value: "http://192.168.10.120:8282/v1",
+		},
+	],
+	defaultValue: "http://192.168.10.65:8282/v1",
+};
+
+const LLAMA_SWAP_CONFIG_FIELDS: readonly ProviderConfigField[] = [
+	LLAMA_SWAP_ENDPOINT_FIELD,
+	{
+		...API_KEY_FIELD,
+		label: "Bearer Token",
+		placeholder: "Optional bearer token",
+		description:
+			"Optional. Leave blank for an unauthenticated local llama-swap endpoint.",
+	},
+];
+
 const VERTEX_CONFIG_FIELDS: readonly ProviderConfigField[] = [
 	{
 		path: "gcp.projectId",
@@ -1096,6 +1124,19 @@ const OPENAI_COMPATIBLE_SPEC_OVERRIDES: BuiltinSpecOverride[] = [
 		defaults: { baseUrl: "http://localhost:1234/v1" },
 		modelsSourceUrl: "http://localhost:1234/v1/models",
 		metadata: { apiKeyOptional: true },
+	},
+	{
+		id: "llama-swap",
+		name: "llama-swap",
+		description: "Switchable local OpenAI-compatible llama-swap endpoints",
+		family: "openai-compatible",
+		popular: 30,
+		capabilities: ["tools"],
+		defaultModelId: "qwen3.6-27b-nvfp4-instruct",
+		modelsFactory: () => ({}),
+		defaults: { baseUrl: "http://192.168.10.65:8282/v1" },
+		modelsSourceUrl: "http://192.168.10.65:8282/v1/models",
+		configFields: LLAMA_SWAP_CONFIG_FIELDS,
 	},
 	{
 		id: "oca",
