@@ -471,6 +471,9 @@ fn desktop_backend_binary_names() -> Vec<String> {
 }
 
 fn resolve_desktop_backend_binary_path(context: &AppContext) -> Option<PathBuf> {
+    if cfg!(debug_assertions) {
+        return None;
+    }
     let explicit = std::env::var("CLINE_CODE_SIDECAR_BIN")
         .ok()
         .map(|value| value.trim().to_string())
@@ -516,12 +519,30 @@ fn spawn_desktop_backend_process(context: &AppContext) -> Result<Child, String> 
         command.current_dir(&context.workspace_root);
         command
     } else if let Some(script_path) = resolve_desktop_backend_script_path(context) {
-        let mut command = Command::new("bun");
-        command
-            .arg("run")
-            .arg(script_path.to_string_lossy().to_string())
-            .current_dir(&context.workspace_root);
-        command
+        #[cfg(windows)]
+        {
+            // Volta and similar Windows version managers expose Bun through a
+            // .cmd shim. std::process::Command cannot execute that shim directly,
+            // so let cmd.exe resolve it just as an interactive shell does.
+            let mut command = Command::new("cmd.exe");
+            command
+                .arg("/D")
+                .arg("/C")
+                .arg("bun")
+                .arg("run")
+                .arg(script_path.to_string_lossy().to_string())
+                .current_dir(&context.workspace_root);
+            command
+        }
+        #[cfg(not(windows))]
+        {
+            let mut command = Command::new("bun");
+            command
+                .arg("run")
+                .arg(script_path.to_string_lossy().to_string())
+                .current_dir(&context.workspace_root);
+            command
+        }
     } else {
         return Err(format!(
             "desktop backend sidecar not found. checked binary/script under workspace_root={} and launch_cwd={}",
