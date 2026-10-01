@@ -1048,6 +1048,11 @@ export async function listLocalProviders(
 							providerId: id,
 							capabilities,
 							localCli: resolveProviderLocalCli(info),
+							...(configFields.some(
+								(field) => field.path === "apiKey" && field.required === false,
+							)
+								? { apiKeyOptional: true }
+								: {}),
 						},
 						authDescription: "This provider uses API keys for authentication.",
 						baseUrlDescription:

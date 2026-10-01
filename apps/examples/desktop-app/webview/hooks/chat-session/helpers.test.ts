@@ -119,8 +119,11 @@ describe("resolveCredentialError", () => {
 			resolveCredentialError(
 				makeConfig({
 					provider: "llama-swap",
-					providerAuth: { providerId: "llama-swap", capabilities: ["tools"] },
-					baseUrl: "http://127.0.0.1:8282/v1",
+					providerAuth: {
+						providerId: "llama-swap",
+						capabilities: ["tools"],
+						apiKeyOptional: true,
+					},
 					apiKey: "",
 				}),
 			),

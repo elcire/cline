@@ -253,8 +253,9 @@ export function resolveCredentialError(
 	if (capabilities?.includes("oauth") || capabilities?.includes("local-auth")) {
 		return null;
 	}
-	// Local OpenAI-compatible endpoints such as llama-swap may not use a key.
-	if (config.baseUrl?.trim()) {
+	// The host's provider manifest knows whether this endpoint needs a key.
+	// Chat config can still lack its base URL while the catalog is loading.
+	if (auth.apiKeyOptional || config.baseUrl?.trim()) {
 		return null;
 	}
 	if (config.apiKey.trim().length > 0) {

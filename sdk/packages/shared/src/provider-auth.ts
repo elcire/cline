@@ -9,6 +9,8 @@ export interface ProviderAuthInfo {
 	providerId: string;
 	capabilities?: string[];
 	localCli?: ProviderLocalCli;
+	/** The provider declares that a local endpoint can run without an API key. */
+	apiKeyOptional?: boolean;
 }
 
 /** Extract declared CLI metadata; callers own provider lookup. */

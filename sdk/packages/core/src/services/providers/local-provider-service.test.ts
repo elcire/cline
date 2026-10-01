@@ -2777,6 +2777,8 @@ describe("listLocalProviders", () => {
 			expect(
 				providers.find((p) => p.id === "anthropic")?.auth.localCli,
 			).toBeUndefined();
+			expect(providers.find((p) => p.id === "llama-swap")?.auth.apiKeyOptional).toBe(true);
+			expect(providers.find((p) => p.id === "anthropic")?.auth.apiKeyOptional).toBeUndefined();
 		} finally {
 			LlmsModels.unregisterProvider("custom-auth-cli");
 		}
