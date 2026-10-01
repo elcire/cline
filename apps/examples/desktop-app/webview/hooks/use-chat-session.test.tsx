@@ -433,6 +433,49 @@ afterEach(async () => {
 });
 
 describe("useChatSession", () => {
+	it.each([
+		["llama-swap", true, true],
+		["anthropic", false, false],
+	] as const)("validates %s credentials through the chat-start schema", async (provider, apiKeyOptional, allowed) => {
+		invokeMock.mockImplementation(
+			async (command: string, args?: Record<string, unknown>) => {
+				if (command === "chat_session_command") {
+					const request = args?.request as {
+						action?: string;
+						config?: { sessionId?: string };
+					};
+					if (request.action === "start")
+						return { sessionId: request.config?.sessionId };
+					if (request.action === "send") return { ok: true };
+				}
+				return [];
+			},
+		);
+		await act(async () => {
+			current.setConfig((previous) => ({
+				...previous,
+				provider,
+				providerAuth: {
+					providerId: provider,
+					capabilities: ["tools"],
+					apiKeyOptional,
+				},
+				model: "test-model",
+				apiKey: "",
+			}));
+		});
+		await act(async () => {
+			expect(await current.sendPrompt("Test keyless chat")).toBe(allowed);
+		});
+		const started = invokeMock.mock.calls.some(
+			([command, args]) =>
+				command === "chat_session_command" && args?.request?.action === "start",
+		);
+		expect(started).toBe(allowed);
+		if (allowed) expect(current.error).toBeNull();
+		else expect(current.error).toContain("Missing API key");
+	});
+
 	it("keeps a remounted pane's newer draft when the original session start rejects", async () => {
 		const drafts = new Map<string, string>();
 		let draft!: ReturnType<typeof usePromptDraft>;
