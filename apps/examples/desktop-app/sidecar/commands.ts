@@ -74,6 +74,7 @@ import {
 	updateLocalProvider,
 	updateMcpSettingsFileSync,
 	upgradeManagedHub,
+	writeGlobalSettings,
 } from "@cline/core";
 import { resolveAudioTranscriptionRoute } from "@cline/llms";
 import {
@@ -2908,6 +2909,9 @@ export async function handleCommand(
 	if (command === "list_provider_models") {
 		const manager = new ProviderSettingsManager();
 		const providerId = String(args?.provider ?? "").trim();
+		// Endpoint-owned catalogs (Ollama, LM Studio, llama-swap, and custom
+		// providers) are refreshed on demand. Besides updating the list, this is
+		// the settings UI's connection test and surfaces endpoint errors there.
 		await refreshProviderModelsFromSource(manager, providerId);
 		const includeCloudModels =
 			providerId === "cline" &&
@@ -3148,6 +3152,19 @@ export async function handleCommand(
 				: undefined,
 		});
 	}
+	if (command === "update_provider_model_context") {
+		const providerId = String(args?.provider ?? "").trim();
+		const modelId = String(args?.model ?? "").trim();
+		if (!providerId || !modelId)
+			throw new Error("provider and model are required");
+		const contextWindow = args?.context_window;
+		if (typeof contextWindow !== "number")
+			throw new Error("context_window must be a number");
+		return await updateLocalProvider(new ProviderSettingsManager(), {
+			providerId,
+			modelContextWindows: { [modelId]: contextWindow },
+		});
+	}
 	if (command === "update_provider_models") {
 		const providerId = String(args?.provider ?? "").trim();
 		const manager = new ProviderSettingsManager();
@@ -3204,6 +3221,22 @@ export async function handleCommand(
 
 	// ── Global settings ────────────────────────────────────────────────
 	if (command === "get_global_settings") {
+		return readGlobalSettings();
+	}
+	if (command === "set_compaction_threshold") {
+		const ratio = args?.threshold_ratio;
+		if (
+			typeof ratio !== "number" ||
+			!Number.isFinite(ratio) ||
+			ratio < 0.1 ||
+			ratio > 0.9
+		) {
+			throw new Error("Compaction threshold must be between 10% and 90%");
+		}
+		writeGlobalSettings({
+			...readGlobalSettings(),
+			compactionThresholdRatio: ratio,
+		});
 		return readGlobalSettings();
 	}
 	if (command === "set_telemetry_opt_out") {

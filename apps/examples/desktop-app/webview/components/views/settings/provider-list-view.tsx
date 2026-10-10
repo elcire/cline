@@ -49,6 +49,7 @@ import type {
 } from "@/lib/provider-schema";
 import { cn } from "@/lib/utils";
 import { AudioModelBadges } from "./audio-model-badges";
+import { ModelContextSettings } from "./compaction-settings";
 
 // Inputs nested inside a composed bordered box (icon + input + buttons in
 // one rounded frame) must strip the Input component's own chrome — border,
@@ -574,6 +575,7 @@ export function ProviderDetailContent({
 	onUpdate,
 	onLoadModels,
 	onUpdateModels,
+	onUpdateModelContext,
 	modelsLoading = false,
 	modelsError,
 	onOAuthLogin,
@@ -587,6 +589,7 @@ export function ProviderDetailContent({
 	onUpdate: (updates: ProviderSettingsUpdate) => void | Promise<void>;
 	onLoadModels?: () => void;
 	onUpdateModels?: (models: string[]) => void;
+	onUpdateModelContext?: (modelId: string, tokens: number) => Promise<void>;
 	modelsLoading?: boolean;
 	modelsError?: string | null;
 	onOAuthLogin?: () => void;
@@ -1184,6 +1187,13 @@ export function ProviderDetailContent({
 													</span>
 												)}
 											</div>
+											{onUpdateModelContext && provider.canEditModelContext && (
+												<ModelContextSettings
+													modelId={model.id}
+													contextWindow={model.contextWindow}
+													onSave={onUpdateModelContext}
+												/>
+											)}
 											{model.description ? (
 												<p className="mt-0.5 truncate px-1 font-sans text-xs text-muted-foreground">
 													{model.description}

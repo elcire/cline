@@ -10,6 +10,7 @@ import {
 	idSlug,
 	resetClineRecommendedModelsCacheForTests,
 } from "../llms/cline-recommended-models";
+import { resolveKnownModelsFromConfig } from "../llms/handler-factory";
 import {
 	clearLiveModelsCatalogCache,
 	clearPrivateModelsCatalogCache,
@@ -2491,6 +2492,75 @@ describe("saveLocalProviderSettings", () => {
 // ===========================================================================
 
 describe("updateLocalProvider", () => {
+	it("persists a per-model context limit and preserves it across refreshes", async () => {
+		const { manager, cleanup } = makeTempManager();
+		try {
+			vi.stubGlobal(
+				"fetch",
+				vi.fn(async () =>
+					Response.json({ data: [{ id: "small" }, { id: "large" }] }),
+				),
+			);
+			await addLocalProvider(manager, {
+				providerId: "context-test",
+				name: "Context test",
+				baseUrl: "http://localhost:8282/v1",
+				modelsSourceUrl: "http://localhost:8282/v1/models",
+				models: ["small", "large"],
+			});
+			await updateLocalProvider(manager, {
+				providerId: "context-test",
+				modelContextWindows: { small: 65536 },
+			});
+			await refreshProviderModelsFromSource(manager, "context-test");
+			const stored = await readModelsFile(resolveModelsRegistryPath(manager));
+			expect(stored.providers["context-test"].models.small).toMatchObject({
+				contextWindow: 65536,
+				maxInputTokens: 65536,
+			});
+			expect(
+				stored.providers["context-test"].models.large.contextWindow,
+			).toBeUndefined();
+			const models = await LlmsModels.getModelsForProvider("context-test");
+			expect(models.small.contextWindow).toBe(65536);
+			const handler = await LlmsModels.createHandlerAsync({
+				...manager.getProviderConfig("context-test"),
+				modelId: "small",
+				knownModels: resolveKnownModelsFromConfig({
+					providerId: "context-test",
+					modelId: "small",
+					providerConfig: manager.getProviderConfig("context-test"),
+				}),
+			});
+			expect(handler.getModel().info.contextWindow).toBe(65536);
+			const catalog = await listLocalProviders(manager);
+			expect(
+				catalog.providers.find((p) => p.id === "context-test")
+					?.canEditModelContext,
+			).toBe(true);
+			for (const value of [0, 1023, 1024.5, NaN, Infinity]) {
+				await expect(
+					updateLocalProvider(manager, {
+						providerId: "context-test",
+						modelContextWindows: { small: value },
+					}),
+				).rejects.toThrow("context window");
+			}
+			await expect(
+				updateLocalProvider(manager, {
+					providerId: "context-test",
+					modelContextWindows: { missing: 65536 },
+				}),
+			).rejects.toThrow("Unknown model");
+			expect(
+				(await readModelsFile(resolveModelsRegistryPath(manager))).providers[
+					"context-test"
+				].models.small.contextWindow,
+			).toBe(65536);
+		} finally {
+			cleanup();
+		}
+	});
 	let manager: ProviderSettingsManager;
 	let cleanup: () => void;
 
@@ -2777,10 +2847,39 @@ describe("listLocalProviders", () => {
 			expect(
 				providers.find((p) => p.id === "anthropic")?.auth.localCli,
 			).toBeUndefined();
-			expect(providers.find((p) => p.id === "llama-swap")?.auth.apiKeyOptional).toBe(true);
-			expect(providers.find((p) => p.id === "anthropic")?.auth.apiKeyOptional).toBeUndefined();
+			// Keyless-capable providers declare it; everyone else requires a key.
+			for (const id of [
+				"openai-compatible",
+				"ollama",
+				"lmstudio",
+				"llama-swap",
+			]) {
+				expect(providers.find((p) => p.id === id)?.auth.apiKeyOptional).toBe(
+					true,
+				);
+			}
+			expect(
+				providers.find((p) => p.id === "anthropic")?.auth.apiKeyOptional,
+			).toBeUndefined();
 		} finally {
 			LlmsModels.unregisterProvider("custom-auth-cli");
+		}
+	});
+
+	it("declares user-added endpoints keyless-capable", async () => {
+		await addLocalProvider(manager, {
+			providerId: "keyless-endpoint",
+			name: "Keyless Endpoint",
+			baseUrl: "http://localhost:8000/v1",
+			models: ["local-model"],
+		});
+		try {
+			const { providers } = await listLocalProviders(manager);
+			expect(
+				providers.find((p) => p.id === "keyless-endpoint")?.auth.apiKeyOptional,
+			).toBe(true);
+		} finally {
+			LlmsModels.unregisterProvider("keyless-endpoint");
 		}
 	});
 

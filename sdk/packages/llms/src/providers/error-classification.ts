@@ -15,7 +15,7 @@ const CONTEXT_WINDOW_CODES = new Set(["context_length_exceeded"]);
  * error-object structure changed (handled by the signal walk below).
  */
 const CONTEXT_WINDOW_PATTERNS = [
-	/\bcontext\s*(?:length|window|limit)\b/i,
+	/\bcontext\s*(?:length|window|limit|size)\b/i,
 	/\bmaximum\s*context\b/i,
 	/\b(?:input\s*)?tokens?\s+exceeds?\b/i,
 	/\btoo\s*many\s*tokens?\b/i,

@@ -13,6 +13,24 @@ import {
 
 describe("classifyProviderError", () => {
 	describe("context_window_exceeded", () => {
+		it("recognizes llama.cpp overflow wording through llama-swap", () => {
+			const message =
+				"request (66175 tokens) exceeds the available context size (65536 tokens), try increasing it";
+			for (const error of [
+				message,
+				new Error(message),
+				{
+					statusCode: 400,
+					responseBody: JSON.stringify({ error: { message } }),
+				},
+			]) {
+				expect(classifyProviderError(error)).toBe("context_window_exceeded");
+			}
+			expect(classifyProviderError({ statusCode: 429, message })).toBe(
+				"unknown",
+			);
+			expect(classifyProviderError({ statusCode: 401, message })).toBe("auth");
+		});
 		it("classifies the gateway-forwarded Alibaba Qwen rejection (captured shape)", () => {
 			// Same payload format.test.ts verifies extractErrorMessage against.
 			expect(

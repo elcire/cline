@@ -63,6 +63,7 @@ export interface ProviderConfigField {
 }
 
 export interface Provider {
+	canEditModelContext?: boolean;
 	modelTools?: ModelToolName[];
 	auth?: ProviderAuthInfo;
 	id: string;

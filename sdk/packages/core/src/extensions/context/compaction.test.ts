@@ -325,6 +325,75 @@ function expectNoOrphanedToolPairs(messages: LlmsProviders.Message[]): void {
 }
 
 describe("createContextCompactionPrepareTurn", () => {
+	it("uses 80% of the full context window, with an earlier input-budget safety cap", async () => {
+		const messages: LlmsProviders.Message[] = [
+			{ role: "user", content: "task ".repeat(1000) },
+		];
+		const systemPrompt = "system";
+		const inputTokens = estimateRequestInputTokens({
+			systemPrompt,
+			messages,
+			tools: [],
+		});
+		const contextWindow = inputTokens / 0.8;
+		const compact = vi.fn(async (_context: CoreCompactionContext) => undefined);
+		const prepare = createContextCompactionPrepareTurn({
+			providerId: "test",
+			modelId: "test",
+			compaction: { enabled: true, thresholdRatio: 0.8, compact },
+		});
+		const context = {
+			agentId: "agent",
+			conversationId: "conversation",
+			parentAgentId: null,
+			iteration: 1,
+			abortSignal: new AbortController().signal,
+			systemPrompt,
+			tools: [],
+			messages,
+			apiMessages: messages,
+			model: {
+				id: "test",
+				provider: "test",
+				info: { id: "test", contextWindow },
+			},
+		};
+		await prepare?.({
+			...context,
+			model: {
+				...context.model,
+				info: { id: "test", contextWindow: contextWindow + 100 },
+			},
+		});
+		expect(compact).not.toHaveBeenCalled();
+		await prepare?.(context);
+		expect(compact.mock.calls[0][0].budget.request.triggerTokens).toBeCloseTo(
+			inputTokens,
+		);
+		await prepare?.({
+			...context,
+			model: {
+				...context.model,
+				info: { ...context.model.info, maxInputTokens: inputTokens },
+			},
+		});
+		expect(compact.mock.calls[1][0].budget.request.triggerTokens).toBeCloseTo(
+			inputTokens * 0.9,
+		);
+	});
+	it.each([
+		0,
+		1,
+		-1,
+		NaN,
+		Infinity,
+	])("rejects invalid compaction ratio %s", (thresholdRatio) => {
+		expect(() =>
+			createContextCompactionPrepareTurn({
+				compaction: { enabled: true, thresholdRatio },
+			}),
+		).toThrow("thresholdRatio");
+	});
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
@@ -2599,6 +2668,79 @@ describe("createContextCompactionPrepareTurn", () => {
 			}),
 		);
 		assertBasicCompactionResult(result);
+	});
+
+	it.each([
+		false,
+		true,
+	])("preserves active attachments with hidden continuation context (overflow recovery: %s)", async (overflowRecovery) => {
+		const attachments: LlmsProviders.ContentBlock[] = [
+			{ type: "image", data: "abc", mediaType: "image/png" },
+			{
+				type: "file",
+				path: "/tmp/question.txt",
+				content: "Attached information",
+			},
+		];
+		const messages: MessageWithMetadata[] = [
+			{ role: "user", content: "Older request" },
+			{ role: "assistant", content: "Old context ".repeat(10_000) },
+			{
+				role: "user",
+				content: [
+					{ type: "text", text: "Answer about these attachments" },
+					...attachments,
+				],
+			},
+			{ role: "assistant", content: "Partial response" },
+			{
+				role: "user",
+				content:
+					"Previous turn ended unexpectedly. Continue from where you left off.",
+				metadata: { displayRole: "system", userRunSpan: 0 },
+			},
+		];
+		const prepareTurn = createContextCompactionPrepareTurn({
+			providerId: "anthropic",
+			modelId: "mock-model",
+			providerConfig: {
+				providerId: "anthropic",
+				modelId: "mock-model",
+			} as LlmsProviders.ProviderConfig,
+			compaction: { enabled: true, strategy: "basic" },
+			logger: undefined,
+		});
+		const result = await prepareTurn?.({
+			agentId: "agent-1",
+			conversationId: "conv-1",
+			parentAgentId: null,
+			iteration: 1,
+			abortSignal: new AbortController().signal,
+			overflowRecovery,
+			systemPrompt: "You are helpful.",
+			tools: [],
+			messages,
+			apiMessages: messages,
+			model: {
+				id: "mock-model",
+				provider: "anthropic",
+				info: {
+					id: "mock-model",
+					maxInputTokens: overflowRecovery ? 1_000_000 : 5_000,
+				},
+			},
+		});
+		expect(result).toBeDefined();
+		expect(
+			result?.messages.flatMap((message) =>
+				Array.isArray(message.content) ? message.content : [],
+			),
+		).toEqual(expect.arrayContaining(attachments));
+		expect(result?.messages.at(-1)).toMatchObject({
+			role: "user",
+			content: messages.at(-1)?.content,
+			metadata: { displayRole: "system", userRunSpan: 0 },
+		});
 	});
 
 	it("forces a basic compaction on overflow recovery, bypassing the estimate gate", async () => {

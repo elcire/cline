@@ -157,6 +157,10 @@ export type CoreCompactionStrategy = "basic" | "agentic";
 
 export interface CoreCompactionConfig {
 	enabled?: boolean;
+	/** Fraction of the full context window at which to compact (0 < ratio < 1).
+	 * The usable input budget can impose an earlier trigger. Default: 0.9.
+	 */
+	thresholdRatio?: number;
 	strategy?: CoreCompactionStrategy;
 	preserveRecentTokens?: number;
 	summarizer?: CoreCompactionSummarizerConfig;

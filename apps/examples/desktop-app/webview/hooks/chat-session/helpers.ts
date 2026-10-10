@@ -253,9 +253,10 @@ export function resolveCredentialError(
 	if (capabilities?.includes("oauth") || capabilities?.includes("local-auth")) {
 		return null;
 	}
-	// The host's provider manifest knows whether this endpoint needs a key.
-	// Chat config can still lack its base URL while the catalog is loading.
-	if (auth.apiKeyOptional || config.baseUrl?.trim()) {
+	// Local inference servers and cloud-credential providers declare the key
+	// optional in their provider metadata; the endpoint's own auth error is
+	// authoritative for them.
+	if (auth.apiKeyOptional) {
 		return null;
 	}
 	if (config.apiKey.trim().length > 0) {

@@ -28,6 +28,41 @@ import {
 } from "./global-settings";
 
 describe("global-settings", () => {
+	it("persists the threshold while preserving unrelated preferences", async () => {
+		const root = await mkdtemp(join(tmpdir(), "compaction-settings-"));
+		process.env.CLINE_GLOBAL_SETTINGS_PATH = join(root, "global.json");
+		try {
+			writeGlobalSettings({
+				telemetryOptOut: true,
+				autoUpdateEnabled: false,
+				disabledTools: ["read_files"],
+			});
+			writeGlobalSettings({
+				...readGlobalSettings(),
+				compactionThresholdRatio: 0.8,
+			});
+			expect(readGlobalSettings()).toMatchObject({
+				telemetryOptOut: true,
+				autoUpdateEnabled: false,
+				disabledTools: ["read_files"],
+				compactionThresholdRatio: 0.8,
+			});
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+	it("validates compaction thresholds without accepting unsafe values", () => {
+		expect(
+			GlobalSettingsSchema.parse({ compactionThresholdRatio: 0.8 })
+				.compactionThresholdRatio,
+		).toBe(0.8);
+		for (const value of [0, 1, -1, NaN, Infinity, "0.8"]) {
+			expect(
+				GlobalSettingsSchema.parse({ compactionThresholdRatio: value })
+					.compactionThresholdRatio,
+			).toBeUndefined();
+		}
+	});
 	const previousGlobalSettingsPath = process.env.CLINE_GLOBAL_SETTINGS_PATH;
 
 	afterEach(() => {

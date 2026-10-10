@@ -15,6 +15,7 @@ import type {
 import {
 	isTranscriptionModel,
 	MODEL_TOOL_NAMES,
+	resolveProviderApiKeyOptional,
 	resolveProviderLocalCli,
 } from "@cline/shared";
 import { createOAuthClientCallbacks } from "../../auth/client";
@@ -76,6 +77,8 @@ export interface UpdateLocalProviderRequest {
 	headers?: Record<string, string> | null;
 	timeoutMs?: number | null;
 	models?: string[];
+	/** Explicit capacities keyed by model id, preserved by model refreshes. */
+	modelContextWindows?: Record<string, number>;
 	defaultModelId?: string | null;
 	modelsSourceUrl?: string | null;
 	protocol?: ProviderProtocol | null;
@@ -892,6 +895,25 @@ async function prepareProviderUpdate(
 				: (existingEntry.discoveredModelIds ?? [...previousDiscoveredIds])
 			: undefined,
 	};
+	const updatedEntry = modelsState.providers[providerId];
+	if (!updatedEntry?.models)
+		throw new Error(`provider "${providerId}" does not exist`);
+	for (const [modelId, contextWindow] of Object.entries(
+		request.modelContextWindows ?? {},
+	)) {
+		const model = updatedEntry.models[modelId];
+		if (!model) throw new Error(`Unknown model "${modelId}"`);
+		if (!Number.isSafeInteger(contextWindow) || contextWindow < 1024) {
+			throw new Error(
+				"Model context window must be an integer of at least 1024 tokens",
+			);
+		}
+		updatedEntry.models[modelId] = {
+			...model,
+			contextWindow,
+			maxInputTokens: contextWindow,
+		};
+	}
 	return {
 		providerId,
 		modelsPath,
@@ -970,6 +992,7 @@ export async function listLocalProviders(
 }> {
 	const state = manager.read();
 	const ids = LlmsModels.getProviderIds();
+	const storedModels = await readModelsFile(resolveModelsRegistryPath(manager));
 
 	// The catalog is built for every provider at startup and must not wait on
 	// the network, so featured tiers come from a synchronous peek (cached live
@@ -1013,6 +1036,7 @@ export async function listLocalProviders(
 					provider: {
 						id,
 						name,
+						canEditModelContext: Boolean(storedModels.providers[id]?.provider),
 						models: modelList.length,
 						color: stableColor(id),
 						letter: createLetter(name),
@@ -1048,9 +1072,7 @@ export async function listLocalProviders(
 							providerId: id,
 							capabilities,
 							localCli: resolveProviderLocalCli(info),
-							...(configFields.some(
-								(field) => field.path === "apiKey" && field.required === false,
-							)
+							...(resolveProviderApiKeyOptional(info)
 								? { apiKeyOptional: true }
 								: {}),
 						},

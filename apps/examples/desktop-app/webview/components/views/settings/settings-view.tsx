@@ -65,6 +65,7 @@ import { AboutContent } from "./about-view";
 import { AccountView } from "./account-view";
 import { AddProviderContent, type AddProviderPayload } from "./add-provider";
 import { ChannelsContent } from "./channels-view";
+import { CompactionSettings } from "./compaction-settings";
 import { CustomizeView } from "./customize-view";
 import { ImportContent } from "./import-view";
 import { NotificationSettings } from "./notification-settings";
@@ -589,6 +590,14 @@ export function SettingsView({
 					onConnect={() => connectProvider(selectedProvider.id)}
 					onDisconnect={() => void disconnectProvider(selectedProvider.id)}
 					onLoadModels={() => void loadProviderModels(selectedProvider.id)}
+					onUpdateModelContext={async (model, contextWindow) => {
+						await desktopClient.invoke("update_provider_model_context", {
+							provider: selectedProvider.id,
+							model,
+							context_window: contextWindow,
+						});
+						await loadProviderModels(selectedProvider.id);
+					}}
 					onUpdateModels={(models) =>
 						void updateProviderModels(selectedProvider.id, models)
 					}
@@ -642,7 +651,7 @@ export function SettingsView({
 		) : activeNav === "Account" ? (
 			<AccountView />
 		) : activeNav === "About" ? (
-			<AboutContent />
+			<AboutContent onOpenConnectors={() => onNavigateSection("Customize")} />
 		) : activeNav === "General" ? (
 			<GeneralSettingsContent onExportDiagnostics={onExportDiagnostics} />
 		) : (
@@ -901,6 +910,7 @@ function GeneralSettingsContent({
 			/>
 			<section className="max-w-344">
 				<NotificationSettings />
+				<CompactionSettings />
 				<div className="flex py-4 items-center justify-between gap-5 border-b max-[720px]:flex-col max-[720px]:items-stretch max-[720px]:py-4">
 					<div className="flex flex-col gap-1">
 						<p className="text-base font-semibold text-foreground">Dark mode</p>
