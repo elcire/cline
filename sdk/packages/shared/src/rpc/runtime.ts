@@ -210,6 +210,8 @@ export interface ProviderConfigField {
 }
 
 export interface ProviderListItem {
+	/** Persisted local endpoint metadata supports per-model context overrides. */
+	canEditModelContext?: boolean;
 	/** Native tools offered by at least some models, resolved by the host. */
 	modelTools: ModelToolName[];
 	auth: ProviderAuthInfo;

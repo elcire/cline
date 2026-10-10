@@ -364,7 +364,7 @@ describe("pathless session starts", () => {
 				expect(input.config).not.toHaveProperty("enableAgentTeams");
 				expect(input.config).toMatchObject({
 					checkpoint: { enabled: true },
-					compaction: { enabled: true },
+					compaction: { enabled: true, thresholdRatio: 0.8 },
 				});
 				expect(input.localRuntime?.extensionContext?.client).toMatchObject({
 					name: "cline-desktop",

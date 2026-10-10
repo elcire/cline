@@ -64,6 +64,12 @@ export const GlobalSettingsSchema = z
 		autoUpdateEnabled: z.boolean().default(true).catch(true),
 		compactionStrategy: GlobalCompactionStrategySchema.optional(),
 		compactionEnabled: z.boolean().optional().catch(undefined),
+		compactionThresholdRatio: z
+			.number()
+			.min(0.1)
+			.max(0.9)
+			.optional()
+			.catch(undefined),
 		planActMode: GlobalPlanActModeSchema.optional().catch(undefined),
 		toolAutoApprove: z.boolean().optional().catch(undefined),
 		tuiTheme: z.string().optional().catch(undefined),
@@ -79,6 +85,7 @@ export const GlobalSettingsSchema = z
 			autoUpdateEnabled: boolean;
 			compactionStrategy?: GlobalCompactionStrategy;
 			compactionEnabled?: boolean;
+			compactionThresholdRatio?: number;
 			planActMode?: GlobalPlanActMode;
 			toolAutoApprove?: boolean;
 			tuiTheme?: string;
@@ -95,6 +102,9 @@ export const GlobalSettingsSchema = z
 		}
 		if (settings.compactionEnabled !== undefined) {
 			normalized.compactionEnabled = settings.compactionEnabled;
+		}
+		if (settings.compactionThresholdRatio !== undefined) {
+			normalized.compactionThresholdRatio = settings.compactionThresholdRatio;
 		}
 		if (settings.planActMode) {
 			normalized.planActMode = settings.planActMode;

@@ -29,6 +29,7 @@ import {
 } from "@cline/core";
 import {
 	getGeneratedModelsForRuntimeProvider,
+	getModelsForProvider,
 	type MessageWithMetadata,
 } from "@cline/llms";
 import {
@@ -196,10 +197,11 @@ async function compactSession(
 		model: {
 			id: modelId,
 			provider: providerId,
-			info: getGeneratedModelsForRuntimeProvider(providerId)[modelId] ?? {
-				id: modelId,
-				maxInputTokens: FALLBACK_MANUAL_COMPACTION_MAX_INPUT_TOKENS,
-			},
+			info: (await getModelsForProvider(providerId))[modelId] ??
+				getGeneratedModelsForRuntimeProvider(providerId)[modelId] ?? {
+					id: modelId,
+					maxInputTokens: FALLBACK_MANUAL_COMPACTION_MAX_INPUT_TOKENS,
+				},
 		},
 	});
 	if (!result?.messages) {
@@ -720,9 +722,11 @@ function buildCoreSessionConfig(
 		missionLogIntervalMs:
 			config.missionTimeIntervalMs ?? config.missionLogIntervalMs,
 		checkpoint: { enabled: true },
-		// Core auto-compaction is opt-in; without this the 90% trigger never
-		// runs and long desktop sessions overflow the context window.
-		compaction: { enabled: true },
+		// Leave headroom for summarization and unexpectedly large tool results.
+		compaction: {
+			enabled: true,
+			thresholdRatio: readGlobalSettings().compactionThresholdRatio ?? 0.8,
+		},
 		sessions: config.sessions,
 		initialMessages: config.initialMessages,
 		extensionContext: createDesktopExtensionContext(telemetryUser),
