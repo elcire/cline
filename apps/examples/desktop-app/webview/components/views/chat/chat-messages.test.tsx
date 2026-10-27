@@ -1130,10 +1130,21 @@ describe("ChatMessages tool disclosures", () => {
 		const copyButton = container.querySelector<HTMLButtonElement>(
 			'button[aria-label="Copy user message"]',
 		);
-		await act(async () => copyButton?.click());
+		vi.useFakeTimers();
+		try {
+			await act(async () => copyButton?.click());
 
-		expect(writeText).toHaveBeenCalledOnce();
-		expect(writeText).toHaveBeenCalledWith("Original prompt");
+			expect(writeText).toHaveBeenCalledOnce();
+			expect(writeText).toHaveBeenCalledWith("Original prompt");
+			expect(copyButton?.getAttribute("aria-label")).toBe(
+				"Copied user message",
+			);
+
+			await act(async () => vi.runOnlyPendingTimers());
+			expect(copyButton?.getAttribute("aria-label")).toBe("Copy user message");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("hides runtime steering notes from the transcript", async () => {
@@ -2620,5 +2631,62 @@ describe("ChatMessages credential failures", () => {
 		]);
 		await act(async () => buttons[0]?.click());
 		expect(onFixCredentials).toHaveBeenCalledWith("models");
+	});
+});
+
+describe("ChatMessages last turn receipt", () => {
+	const message = (
+		id: string,
+		role: "user" | "assistant",
+		content: string,
+	): ChatMessage => ({
+		id,
+		sessionId: "session-1",
+		role,
+		content,
+		createdAt: Date.now(),
+	});
+	const transcript = [
+		message("u1", "user", "first ask"),
+		message("a1", "assistant", "first answer"),
+		message("u2", "user", "second ask"),
+		message("a2", "assistant", "second answer"),
+	];
+	const lastTurnChanges = {
+		files: [
+			{ path: "docs/b.md", status: "A" as const, additions: 5, deletions: 0 },
+		],
+		omitted: 0,
+	};
+	const receipts = () =>
+		container.querySelectorAll('[data-testid="turn-receipt"]');
+
+	it("closes the finished last turn with a receipt that opens its changes", async () => {
+		const onReviewLastTurn = vi.fn();
+		await renderMessages(transcript, { lastTurnChanges, onReviewLastTurn });
+		expect(receipts()).toHaveLength(1);
+		const text = container.textContent ?? "";
+		expect(text.indexOf("second answer")).toBeLessThan(
+			text.indexOf("Changed 1 file"),
+		);
+		await act(async () => {
+			receipts()[0]?.querySelector<HTMLButtonElement>("button")?.click();
+		});
+		expect(onReviewLastTurn).toHaveBeenCalledWith();
+		await act(async () => {
+			receipts()[0]
+				?.querySelector<HTMLButtonElement>('[title="docs/b.md"]')
+				?.click();
+		});
+		expect(onReviewLastTurn).toHaveBeenCalledWith("docs/b.md");
+	});
+
+	it("hides while a turn runs", async () => {
+		await renderMessages(transcript, {
+			lastTurnChanges,
+			onReviewLastTurn: vi.fn(),
+			status: "running",
+		});
+		expect(receipts()).toHaveLength(0);
 	});
 });
