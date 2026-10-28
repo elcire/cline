@@ -132,16 +132,14 @@ const LLAMA_SWAP_ENDPOINT_FIELD: ProviderConfigField = {
 	label: "Endpoint",
 	type: "select",
 	description:
-		"Active llama-swap OpenAI-compatible endpoint. Changing it affects the next request; refresh models after switching.",
+		"Scheduled local-model router. Refresh models after switching endpoints.",
 	options: [
-		{ label: "LAN · 192.168.10.65", value: "http://192.168.10.65:8282/v1" },
-		{ label: "LAN · 192.168.1.100", value: "http://192.168.1.100:8282/v1" },
 		{
-			label: "This PC · WSL (192.168.10.120)",
-			value: "http://192.168.10.120:8282/v1",
+			label: "Scheduled 27B · 192.168.10.65",
+			value: "http://192.168.10.65:8284/v1",
 		},
 	],
-	defaultValue: "http://192.168.10.65:8282/v1",
+	defaultValue: "http://192.168.10.65:8284/v1",
 };
 
 const LLAMA_SWAP_CONFIG_FIELDS: readonly ProviderConfigField[] = [
@@ -149,10 +147,9 @@ const LLAMA_SWAP_CONFIG_FIELDS: readonly ProviderConfigField[] = [
 	{
 		...API_KEY_FIELD,
 		label: "Bearer Token",
-		placeholder: "Optional bearer token",
-		description:
-			"Optional. Leave blank for an unauthenticated local llama-swap endpoint.",
-		required: false,
+		placeholder: "Router application key",
+		description: "Cline application key issued by the local router.",
+		required: true,
 	},
 ];
 
@@ -1142,12 +1139,43 @@ const OPENAI_COMPATIBLE_SPEC_OVERRIDES: BuiltinSpecOverride[] = [
 		family: "openai-compatible",
 		popular: 30,
 		capabilities: ["tools"],
-		defaultModelId: "qwen3.6-27b-nvfp4-instruct",
+		defaultModelId: "qwen3.8-27b-iq4xs-pure-64k",
 		modelsFactory: () => ({}),
-		defaults: { baseUrl: "http://192.168.10.65:8282/v1" },
-		modelsSourceUrl: "http://192.168.10.65:8282/v1/models",
+		defaults: { baseUrl: "http://192.168.10.65:8284/v1" },
+		modelsSourceUrl: "http://192.168.10.65:8284/v1/models",
 		configFields: LLAMA_SWAP_CONFIG_FIELDS,
-		metadata: { apiKeyOptional: true },
+		metadata: { apiKeyOptional: false },
+	},
+	{
+		id: "strata",
+		name: "Strata Flash-Next",
+		description: "WSL Flash-Next IQ3_S through the exclusive local router",
+		family: "openai-compatible",
+		protocol: "openai-chat",
+		popular: 31,
+		capabilities: ["streaming", "tools", "vision"],
+		defaultModelId: "qwen3.8-flash-next-iq3s-32k",
+		modelsFactory: () => ({
+			"qwen3.8-flash-next-iq3s-32k": {
+				id: "qwen3.8-flash-next-iq3s-32k",
+				name: "Qwen3.8 Flash-Next IQ3_S · 32K",
+				contextWindow: 32768,
+				maxInputTokens: 30720,
+				maxTokens: 2048,
+				capabilities: ["tools", "images", "streaming"],
+				modalities: { input: ["text", "image"], output: ["text"] },
+				temperature: 0,
+			},
+		}),
+		defaults: { baseUrl: "http://192.168.1.100:8294/v1" },
+		modelsSourceUrl: "http://192.168.1.100:8294/v1/models",
+		configFields: [
+			{ ...API_KEY_FIELD, label: "Router key", required: true },
+			{
+				...BASE_URL_FIELD,
+				description: "Plain HTTP LAN endpoint for the Strata router.",
+			},
+		],
 	},
 	{
 		id: "oca",

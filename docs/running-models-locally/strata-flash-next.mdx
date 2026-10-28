@@ -1,0 +1,48 @@
+---
+title: "Strata Flash-Next on WSL"
+description: "Use the isolated Flash-Next router from Cline Desktop."
+---
+
+The local Windows build includes **Strata Flash-Next** under Settings > Providers.
+It uses OpenAI Chat Completions with native tools, streamed responses and image
+input. No Cline account is needed.
+
+| Setting | Workstation value |
+| --- | --- |
+| Provider | Strata Flash-Next (`strata`) |
+| Base URL | `http://192.168.1.100:8294/v1` |
+| Model | `qwen3.8-flash-next-iq3s-32k` |
+| Context | 32,768 tokens |
+| Input/output budget | 30,720 / 2,048 tokens |
+| Credential | Cline key issued by this router |
+
+The endpoint is plain HTTP on the private LAN. Cline does not use an SSH tunnel
+or HTTPS. The bearer key identifies the Cline client to the router; it is separate
+from the private backend credential. Keys belong in the user's provider settings,
+never in source control. This workstation's settings were backed up before adding
+the provider and retain the shared 27B provider separately.
+
+The Windows checkout is `X:\cline-setup`. Build 0.0.50 adds this provider preset.
+After installing, choose **Strata Flash-Next** in the model picker for a new task.
+The model list comes from the selected router's `/v1/models`; it advertises one
+model. This is the deployed 32K profile, regardless of the model's native context.
+Reasoning is disabled in this tested server profile.
+
+The WSL session is owned by `strata-wsl-session.service`. It takes exclusive GPU
+ownership from the old local Hermes/llama-swap/video-worker services, which are
+restored when the Strata session stops. The main `.65` inference server is
+independent. Model data remains read-only on SSD; runtime caches/logs stay on HDD.
+
+Cancellation or an abnormal backend response pauses admission. The session
+controller stops the entire isolated worker and proves its cgroup/port has exited
+before reloading and accepting another request. A queued request may need retrying
+after recovery. This is worker recycling, not hot request-level preemption.
+
+For the shared 27B model, select **llama-swap** instead. Its scheduled endpoint is
+`http://192.168.10.65:8284/v1`, model `qwen3.8-27b-iq4xs-pure-64k`.
+Direct port-8282 model servers bypass scheduling.
+
+The finite live SDK harness is `sdk/packages/llms/scripts/strata-smoke.ts`.
+Run it with the configured private key file and optional `STRATA_TEST_IMAGE`
+fixture. It reports correctness/timings without printing generated text, images,
+keys or tool payloads.

@@ -10,11 +10,13 @@ OpenAI-compatible Chat Completions transport and does not require a Cline
 account or an API key. An optional bearer token can be saved when an endpoint
 requires one.
 
-The Desktop provider settings offer these endpoints:
-
-- `http://192.168.10.65:8282/v1`
-- `http://192.168.1.100:8282/v1`
-- `http://192.168.10.120:8282/v1` (the llama-swap process in this PC's WSL)
+The Desktop llama-swap provider now uses the scheduled endpoint
+`http://192.168.10.65:8284/v1` with model
+`qwen3.8-27b-iq4xs-pure-64k`. A router-issued Cline key is required.
+The separate **Strata Flash-Next** provider uses
+`http://192.168.1.100:8294/v1`; see [Strata setup](./strata-flash-next).
+Historical direct port-8282 endpoints in the development examples below bypass
+the scheduler and are not the current workstation connection settings.
 
 Changing the endpoint is persisted immediately and refreshes the model list
 from the selected endpoint's `GET /v1/models`. The next request uses the new

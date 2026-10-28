@@ -1,5 +1,10 @@
 # Cline Desktop Changelog
 
+## 0.0.50 (local build)
+
+- Add a Strata Flash-Next provider for the authenticated plain-HTTP WSL router, with the deployed 32K context limit and image/tool support.
+- Route the llama-swap provider through the scheduled 27B gateway on port 8284 instead of direct model-server endpoints.
+
 ## 0.0.49
 
 - A new **Changes** button in the session header shows the session's line counts and opens a pane listing the files changed in the last turn or across the whole session, with a diff of each. When a turn finishes, a summary under it lists the files it changed; click it to open the pane on that turn

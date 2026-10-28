@@ -181,14 +181,14 @@ describe("provider-ids", () => {
 		});
 	});
 
-	it("registers llama-swap as a keyless OpenAI-compatible provider with selectable endpoints", async () => {
+	it("registers llama-swap through the authenticated scheduled router", async () => {
 		expect(BUILT_IN_PROVIDER_IDS).toContain("llama-swap");
 		await expect(getProvider("llama-swap")).resolves.toMatchObject({
 			id: "llama-swap",
 			name: "llama-swap",
-			baseUrl: "http://192.168.10.65:8282/v1",
-			modelsSourceUrl: "http://192.168.10.65:8282/v1/models",
-			defaultModelId: "qwen3.6-27b-nvfp4-instruct",
+			baseUrl: "http://192.168.10.65:8284/v1",
+			modelsSourceUrl: "http://192.168.10.65:8284/v1/models",
+			defaultModelId: "qwen3.8-27b-iq4xs-pure-64k",
 			client: "openai-compatible",
 			metadata: {
 				configFields: expect.arrayContaining([
@@ -197,14 +197,14 @@ describe("provider-ids", () => {
 						type: "select",
 						options: expect.arrayContaining([
 							expect.objectContaining({
-								value: "http://192.168.10.120:8282/v1",
+								value: "http://192.168.10.65:8284/v1",
 							}),
 						]),
 					}),
 					expect.objectContaining({
 						path: "apiKey",
 						type: "password",
-						required: false,
+						required: true,
 					}),
 				]),
 			},
@@ -216,6 +216,28 @@ describe("provider-ids", () => {
 		await expect(registration?.loadProvider?.()).resolves.toMatchObject({
 			createProvider: createOpenAICompatibleProvider,
 		});
+	});
+
+	it("registers the isolated Strata router with its actual 32K image/tool model", async () => {
+		expect(BUILT_IN_PROVIDER_IDS).toContain("strata");
+		await expect(getProvider("strata")).resolves.toMatchObject({
+			id: "strata",
+			baseUrl: "http://192.168.1.100:8294/v1",
+			modelsSourceUrl: "http://192.168.1.100:8294/v1/models",
+			defaultModelId: "qwen3.8-flash-next-iq3s-32k",
+			client: "openai-compatible",
+		});
+		const models = await getModelsForProvider("strata");
+		expect(Object.keys(models)).toEqual(["qwen3.8-flash-next-iq3s-32k"]);
+		expect(models["qwen3.8-flash-next-iq3s-32k"]).toMatchObject({
+			contextWindow: 32768,
+			maxInputTokens: 30720,
+			maxTokens: 2048,
+			capabilities: expect.arrayContaining(["images", "tools"]),
+		});
+		expect(models["qwen3.8-flash-next-iq3s-32k"].capabilities).not.toContain(
+			"reasoning",
+		);
 	});
 
 	it("registers Xiaomi as an OpenAI-compatible built-in provider", async () => {

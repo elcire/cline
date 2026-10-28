@@ -29,6 +29,7 @@ export enum BUILT_IN_PROVIDER {
 	OLLAMA = "ollama",
 	LMSTUDIO = "lmstudio",
 	LLAMA_SWAP = "llama-swap",
+	STRATA = "strata",
 	// OpenAI-compatible
 	DEEPSEEK = "deepseek",
 	XAI = "xai",
